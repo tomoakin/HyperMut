@@ -14,7 +14,7 @@ An example would look like:
   ruby sammmcontext-f4.rb --ref=ref.fa --sam=sample.sam \
     --min-qv=60 --max-N=3 -m 600 -t 2 \
     -p 1 -e 4264 -c 27 -d 4246 -g 3699 -h 3911 \
-    > sample.refh.ighsubstcuorga.out60c
+    > sample.ref.highsubstcuorga.out60c
 ```
 
 See the program for detail of the parameters.
