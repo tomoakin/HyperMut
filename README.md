@@ -1,6 +1,6 @@
 # HyperMut
 
-This repository contains a program to identify sequences
+Hyper mutation detection program to identify sequences
 that have multiple T-to-C or G-to-A mutations in a fragment.
 
 Primary inputs are a sam file and a reference sequence.
