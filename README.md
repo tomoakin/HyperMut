@@ -19,3 +19,5 @@ An example would look like:
 
 See the program for detail of the parameters.
 
+While sammmcontext-f4.rb assumes paired overlapping reads and seek mutation
+on the consensus, sammcontext-s.rb works with single read.
