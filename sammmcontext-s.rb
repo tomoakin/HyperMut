@@ -154,27 +154,6 @@ class DiffAccumulator
   end
 end
 
-def makeconsensus(seq1, qual1, seq2, qual2, pdiff, tlen)
-  return makeconsensus(seq2, qual2, seq1, qual1, -pdiff, tlen) if pdiff < 0
-  seq = "N"*tlen
-  qual = Array.new(tlen,2)
-  seq[pdiff ... pdiff + seq1.length ] = seq1
-  qual[pdiff ... pdiff + qual1.length] = qual1
-  (0...seq2.length).each do |i|
-    if (seq[i]  == seq2[i]) then
-      qual[i] += qual2[i] if qual[i] >2
-    elsif (seq[i] == "N") then
-      seq[i] = seq2[i]
-      qual[i] = qual2[i]
-    elsif (seq2[i] == "N") then
-      # don't change
-    else 
-      seq[i] = "N"
-      qual[i] = 2
-    end
-  end
-  return SeqQual.new(seq,qual)
-end
 def clip(seq, cigar)
   cigar =~ /(([0-9]+)S)?([0-9]+)M([0-9]+S)?/
   preskip = $2.to_i
@@ -231,7 +210,7 @@ ff.each do |fe|
   i+=1
 #  puts i.to_s
 #  puts fe.hits.size
-  next if fe.hits.size != 2
+  next if fe.hits.size != 1
 #  puts fe.hits
   next if fe.hits[0].target_id == "*" or fe.hits[1].target_id == "*"
   next if fe.hits[0].tlen > $length_barrier or 
@@ -239,38 +218,17 @@ ff.each do |fe|
   next if fe.hits[0].tlen == 0 
   next if fe.hits[0].tlen + fe.hits[1].tlen != 0
   next if fe.hits[0].pos < $start_pos_limit
-  next if fe.hits[1].pos < $start_pos_limit
 #  puts fe.hits[0].tlen
 #  puts fe.hits[1].tlen
   tlen0 = fe.hits[0].tlen
   tlen0 = -tlen0 if tlen0 <0
-  tlen1 = fe.hits[1].tlen
-  tlen1 = -tlen1 if tlen1 <0
-  tlen = tlen1 > tlen0 ? tlen1 : tlen0
   next if fe.hits[0].pos == $filter_3Dend1 && 
           fe.hits[0].pos + tlen0 - 1 == $filter_3Dend2
-  next if fe.hits[1].pos == $filter_3Dend1 &&
-          fe.hits[1].pos + tlen1 - 1 == $filter_3Dend2
   next if fe.hits[0].pos + tlen > $end_pos_limit
-  pdiff = fe.hits[0].pos - fe.hits[1].pos
   clippedseq1 = clip(fe.hits[0].seq, fe.hits[0].cigar)
-  clippedseq2 = clip(fe.hits[1].seq, fe.hits[1].cigar)
-  if pdiff >  0
-    tlen = pdiff + clippedseq1.length if tlen < pdiff + clippedseq1.length
-    tlen = clippedseq2.length if tlen < clippedseq2.length
-  else
-    tlen = clippedseq1.length if tlen < clippedseq1.length
-    tlen = -pdiff + clippedseq2.length if tlen < -pdiff + clippedseq2.length
-  end
-  pmin = pdiff > 0 ? fe.hits[1].pos : fe.hits[0].pos
-  abspdiff = pdiff > 0 ? pdiff : -pdiff
   refseq = refs.get_ref(fe.hits[0].target_id, pmin, tlen)
-#  puts pdiff
   clippedqual1 = clipq(fe.hits[0].qual_str, fe.hits[0].cigar, fe.hits[0].pos, $start_pos_cut, $end_pos_cut)
-  clippedqual2 = clipq(fe.hits[1].qual_str, fe.hits[1].cigar, fe.hits[1].pos, $start_pos_cut, $end_pos_cut)
-  cseq=makeconsensus(clippedseq1, clippedqual1.unpack('c*').map{|x| x - 33}, 
-    clippedseq2, clippedqual2.unpack('c*').map{|x| x - 33}, pdiff, tlen)
-  next if cseq.seq.count("N") > $max_n
+  next if clippedseq1.count("N") > $max_n
 #  p cseq.seq.size, cseq.qual.size
   mmc = dc.count(cseq.seq, cseq.qual, refseq) 
   if (mmc[0] > $report_threshold)
@@ -280,17 +238,8 @@ ff.each do |fe|
     puts refseq
     puts fe.hits[0].pos
     puts fe.hits[0].cigar + fe.hits[0].strand
-    print " " * abspdiff if pdiff > 0
     puts clippedseq1
     puts clippedqual1.unpack('c*').map{|x| x - 33}.join(' ')
-    puts fe.hits[1].pos
-    puts fe.hits[1].cigar + fe.hits[1].strand
-    print " " * abspdiff if pdiff  <0
-    puts clippedseq2
-    puts clippedqual2.unpack('c*').map{|x| x - 33}.join(' ')
-    puts "read consensus"
-    puts cseq.seq
-    puts cseq.qual.join(' ')
     if(mmc[1] > $report_threshold)
       puts "GAdiff #{mmc[1]} #{fe.hits[0].template_id}"
     end
