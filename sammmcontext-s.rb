@@ -210,7 +210,7 @@ ff.each do |fe|
   i+=1
 #  puts i.to_s
 #  puts fe.hits.size
-  next if fe.hits.size != 1
+#  next if fe.hits.size != 1
 #  puts fe.hits
   next if fe.hits[0].target_id == "*" or fe.hits[1].target_id == "*"
   next if fe.hits[0].tlen > $length_barrier or 
@@ -222,14 +222,17 @@ ff.each do |fe|
 #  puts fe.hits[1].tlen
   tlen0 = fe.hits[0].tlen
   tlen0 = -tlen0 if tlen0 <0
+  tlen = tlen0
   next if fe.hits[0].pos == $filter_3Dend1 && 
           fe.hits[0].pos + tlen0 - 1 == $filter_3Dend2
   next if fe.hits[0].pos + tlen > $end_pos_limit
   clippedseq1 = clip(fe.hits[0].seq, fe.hits[0].cigar)
+  pmin = fe.hits[0].pos
   refseq = refs.get_ref(fe.hits[0].target_id, pmin, tlen)
   clippedqual1 = clipq(fe.hits[0].qual_str, fe.hits[0].cigar, fe.hits[0].pos, $start_pos_cut, $end_pos_cut)
   next if clippedseq1.count("N") > $max_n
 #  p cseq.seq.size, cseq.qual.size
+  cseq = SeqQual.new(clippedseq1, clippedqual1.unpack('c*').map{|x| x - 33})
   mmc = dc.count(cseq.seq, cseq.qual, refseq) 
   if (mmc[0] > $report_threshold)
     puts mmc
