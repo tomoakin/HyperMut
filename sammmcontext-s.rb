@@ -23,9 +23,6 @@ OptionParser.new do |opt|
   opt.on('-n MAX_N', '--max-N=INTEGER'){|v| 
     $max_n = v.to_i
   }
-  opt.on('-m MAX_FRAG', '--max-fragment-size=INTEGER'){|lb|
-    $length_barrier=lb.to_i
-  }
   opt.on('-p START_POS', '--start-pos=INTEGER'){|sp|
     $start_pos_limit=sp.to_i
 # if the match begins before this point the hit should be discarded
@@ -153,7 +150,12 @@ class DiffAccumulator
     
   end
 end
-
+def cigar2tlen(cigar)
+  # just minimalistic interpretation without
+  # general aplicability where indels are observed
+  cigar =~ /(([0-9]+)S)?([0-9]+)M([0-9]+S)?/
+  $3.to_i
+end
 def clip(seq, cigar)
   cigar =~ /(([0-9]+)S)?([0-9]+)M([0-9]+S)?/
   preskip = $2.to_i
@@ -211,25 +213,17 @@ ff.each do |fe|
 #  puts i.to_s
 #  puts fe.hits.size
 #  next if fe.hits.size != 1
-#  puts fe.hits
-  next if fe.hits[0].target_id == "*" or fe.hits[1].target_id == "*"
-  next if fe.hits[0].tlen > $length_barrier or 
-    fe.hits[0].tlen < -$length_barrier
-  next if fe.hits[0].tlen == 0 
-  next if fe.hits[0].tlen + fe.hits[1].tlen != 0
+  next if fe.hits[0].target_id == "*"
+  # don't test for tlen because it is set to 0 for single read
   next if fe.hits[0].pos < $start_pos_limit
 #  puts fe.hits[0].tlen
 #  puts fe.hits[1].tlen
-  tlen0 = fe.hits[0].tlen
-  tlen0 = -tlen0 if tlen0 <0
-  tlen = tlen0
-  next if fe.hits[0].pos == $filter_3Dend1 && 
-          fe.hits[0].pos + tlen0 - 1 == $filter_3Dend2
-  next if fe.hits[0].pos + tlen > $end_pos_limit
-  clippedseq1 = clip(fe.hits[0].seq, fe.hits[0].cigar)
+  next if fe.hits[0].pos == $filter_3Dend1 
+  cigar = fe.hits[0].cigar
+  clippedseq1 = clip(fe.hits[0].seq, cigar)
   pmin = fe.hits[0].pos
-  refseq = refs.get_ref(fe.hits[0].target_id, pmin, tlen)
-  clippedqual1 = clipq(fe.hits[0].qual_str, fe.hits[0].cigar, fe.hits[0].pos, $start_pos_cut, $end_pos_cut)
+  refseq = refs.get_ref(fe.hits[0].target_id, pmin, cigar2tlen(cigar))
+  clippedqual1 = clipq(fe.hits[0].qual_str, cigar, fe.hits[0].pos, $start_pos_cut, $end_pos_cut)
   next if clippedseq1.count("N") > $max_n
 #  p cseq.seq.size, cseq.qual.size
   cseq = SeqQual.new(clippedseq1, clippedqual1.unpack('c*').map{|x| x - 33})
